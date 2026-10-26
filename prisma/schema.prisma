@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CountryResult {
+  id                  Int      @id @default(autoincrement())
+  name                String   @unique
+  countryCode         String
+  region              String
+  latitude            Float
+  longitude           Float
+  optionOneVotes      Int
+  optionTwoVotes      Int
+  totalVotes          Int
+  optionOnePercentage Float
+  optionTwoPercentage Float
+  leader              String
+  createdAt           DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
