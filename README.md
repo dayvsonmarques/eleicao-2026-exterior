@@ -1,38 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Eleição 2026 no Exterior
 
-## Getting Started
+Dashboard em Next.js para analisar como votaram os brasileiros no exterior nas eleições presidenciais de 2026.
 
-First, run the development server:
+## O que oferece
+
+- filtro por país e região
+- mapa mundial interativo com marcadores por localidade
+- comparação entre os dois campos de votação
+- visão geral de votos, percentual e ranking por país
+- integração com PostgreSQL via Prisma
+
+## Tecnologias
+
+- Next.js
+- React
+- TypeScript
+- PostgreSQL
+- Prisma
+- Tailwind CSS
+- Recharts
+- react-simple-maps
+
+## Pré-requisitos
+
+- Node.js 20+
+- Docker
+- npm
+
+## Como rodar
+
+1. Instale as dependências:
+
+```bash
+npm install
+```
+
+2. Inicie o banco PostgreSQL:
+
+```bash
+npm run db:start
+```
+
+3. Gere o cliente Prisma e popule os dados:
+
+```bash
+npx prisma generate
+npm run db:seed
+```
+
+4. Inicie o projeto:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse: http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts úteis
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run dev
+npm run build
+npm run start
+npm run db:start
+npm run db:seed
+```
 
-## Learn More
+## Observação
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# eleicao-2026-exterior
-# eleicao-2026-exterior
+Os dados exibidos são uma base compilada e parcial, reunida para análise visual e comparativa do comportamento dos brasileiros no exterior.

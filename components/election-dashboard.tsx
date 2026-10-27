@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -44,9 +44,11 @@ const getCandidateLabel = (value: "Opção 1" | "Opção 2") =>
 export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
   const [selectedCountry, setSelectedCountry] = useState("Todos os países");
   const [selectedRegion, setSelectedRegion] = useState("Todos");
+  const [selectedCandidate, setSelectedCandidate] = useState<"Todos" | "Opção 1" | "Opção 2">("Todos");
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [mapRegionFocus, setMapRegionFocus] = useState("Todos");
+  const [mapZoom, setMapZoom] = useState(1);
   const [viewMode, setViewMode] = useState<"votos" | "percentual">("votos");
 
   const mapFocusOptions = useMemo(
@@ -54,29 +56,61 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
     [],
   );
 
-  const mapProjectionConfig = useMemo(() => {
-    switch (mapRegionFocus) {
-      case "América":
-        return { scale: 260, center: [-60, 10] as [number, number] };
-      case "Europa":
-        return { scale: 260, center: [18, 52] as [number, number] };
-      case "África":
-        return { scale: 230, center: [15, 2] as [number, number] };
-      case "Ásia":
-        return { scale: 220, center: [95, 35] as [number, number] };
-      case "Oriente Médio":
-        return { scale: 240, center: [35, 28] as [number, number] };
-      case "Oceania":
-        return { scale: 250, center: [140, -25] as [number, number] };
-      default:
-        return { scale: 170, center: [0, 10] as [number, number] };
-    }
-  }, [mapRegionFocus]);
+  const candidateFilterOptions = useMemo(
+    () => [
+      { label: "Todos", value: "Todos" as const },
+      { label: getCandidateLabel("Opção 1"), value: "Opção 1" as const },
+      { label: getCandidateLabel("Opção 2"), value: "Opção 2" as const },
+    ],
+    [],
+  );
 
   const normalizedCountries = useMemo(
     () => countries.map((country) => ({ ...country, region: normalizeRegion(country.region) })),
     [countries],
   );
+
+  const selectedCountryData = useMemo(
+    () => normalizedCountries.find((country) => country.name === selectedCountry) ?? null,
+    [normalizedCountries, selectedCountry],
+  );
+
+  const handleCountrySelect = (countryName: string) => {
+    setSelectedCountry(countryName);
+    setMapZoom(1);
+    const country = normalizedCountries.find((item) => item.name === countryName);
+    if (country) {
+      setMapRegionFocus(normalizeRegion(country.region));
+    }
+  };
+
+  const mapProjectionConfig = useMemo(() => {
+    const zoomFactor = mapZoom;
+
+    if (selectedCountryData) {
+      return {
+        scale: 480 * zoomFactor,
+        center: [selectedCountryData.longitude, selectedCountryData.latitude] as [number, number],
+      };
+    }
+
+    switch (mapRegionFocus) {
+      case "América":
+        return { scale: 300 * zoomFactor, center: [-60, 10] as [number, number] };
+      case "Europa":
+        return { scale: 300 * zoomFactor, center: [18, 52] as [number, number] };
+      case "África":
+        return { scale: 270 * zoomFactor, center: [15, 2] as [number, number] };
+      case "Ásia":
+        return { scale: 260 * zoomFactor, center: [95, 35] as [number, number] };
+      case "Oriente Médio":
+        return { scale: 280 * zoomFactor, center: [35, 28] as [number, number] };
+      case "Oceania":
+        return { scale: 290 * zoomFactor, center: [140, -25] as [number, number] };
+      default:
+        return { scale: 200 * zoomFactor, center: [0, 10] as [number, number] };
+    }
+  }, [mapRegionFocus, mapZoom, selectedCountryData]);
 
   const hoveredCountryData = useMemo(
     () => normalizedCountries.find((country) => country.name === hoveredCountry) ?? null,
@@ -91,11 +125,13 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
   const visibleCountries = useMemo(() => {
     const byRegion =
       selectedRegion === "Todos" ? normalizedCountries : normalizedCountries.filter((country) => country.region === selectedRegion);
+    const byCandidate =
+      selectedCandidate === "Todos" ? byRegion : byRegion.filter((country) => country.leader === selectedCandidate);
     const query = searchQuery.trim().toLowerCase();
 
-    if (!query) return byRegion;
-    return byRegion.filter((country) => country.name.toLowerCase().includes(query));
-  }, [normalizedCountries, searchQuery, selectedRegion]);
+    if (!query) return byCandidate;
+    return byCandidate.filter((country) => country.name.toLowerCase().includes(query));
+  }, [normalizedCountries, searchQuery, selectedCandidate, selectedRegion]);
 
   const mapCountries = useMemo(() => {
     if (mapRegionFocus === "Todos") return visibleCountries;
@@ -106,11 +142,6 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
     if (selectedCountry === "Todos os países") return visibleCountries;
     return visibleCountries.filter((country) => country.name === selectedCountry);
   }, [selectedCountry, visibleCountries]);
-
-  const selectedCountryData = useMemo(
-    () => normalizedCountries.find((country) => country.name === selectedCountry) ?? null,
-    [normalizedCountries, selectedCountry],
-  );
 
   const totalOptionOne = normalizedCountries.reduce((sum, country) => sum + country.optionOneVotes, 0);
   const totalOptionTwo = normalizedCountries.reduce((sum, country) => sum + country.optionTwoVotes, 0);
@@ -174,6 +205,11 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
     : `${optionOneShare.toFixed(1)}% x ${optionTwoShare.toFixed(1)}%`;
 
   const focusCountry = hoveredCountryData ?? selectedCountryData;
+
+  const resetMapView = () => {
+    setMapZoom(1);
+    setMapRegionFocus("Todos");
+  };
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -381,31 +417,39 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
         </div>
 
         <section className="grid gap-6 xl:grid-cols-[350px_minmax(0,1fr)]">
-          <aside className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl shadow-slate-950/30">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <aside className="rounded-3xl border border-slate-800 bg-slate-900/70 p-4 shadow-xl shadow-slate-950/30">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-white">Filtrar por país</h2>
               <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs text-slate-300">
                 {filteredCountries.length} países
               </span>
             </div>
 
-            <label className="mb-4 block">
-              <span className="mb-2 block text-sm text-slate-300">Busca</span>
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Digite o nome do país"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-500"
-              />
-            </label>
+            <div className="mb-3">
+              <div className="mb-2 text-sm text-slate-300">Candidato</div>
+              <div className="flex flex-wrap gap-2">
+                {candidateFilterOptions.map((candidate) => (
+                  <button
+                    key={candidate.value}
+                    type="button"
+                    onClick={() => setSelectedCandidate(candidate.value)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                      selectedCandidate === candidate.value ? "bg-cyan-500 text-cyan-950" : "border border-slate-700 bg-slate-950 text-slate-300"
+                    }`}
+                  >
+                    {candidate.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            <div className="mb-4 flex flex-wrap gap-2">
+            <div className="mb-3 flex flex-wrap gap-2">
               {regionOptions.map((region) => (
                 <button
                   key={region}
                   type="button"
                   onClick={() => setSelectedRegion(region)}
-                  className={`rounded-full px-2.5 py-1.5 text-xs font-medium transition ${
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
                     selectedRegion === region ? "bg-cyan-500 text-cyan-950" : "border border-slate-700 bg-slate-950 text-slate-300"
                   }`}
                 >
@@ -414,7 +458,7 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
               ))}
             </div>
 
-            <label className="mb-4 block">
+            <label className="mb-3 block">
               <span className="mb-2 block text-sm text-slate-300">País</span>
               <select
                 value={selectedCountry}
@@ -430,8 +474,8 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
               </select>
             </label>
 
-            <div className="space-y-2">
-              {filteredCountries.map((country) => {
+            <div className="max-h-[62vh] space-y-2 overflow-auto pr-1">
+              {(filteredCountries.length > 8 ? filteredCountries.slice(0, 8) : filteredCountries).map((country) => {
                 const isSelected = country.name === selectedCountry;
                 const leaderColor = country.leader === "Opção 1" ? "text-red-400" : "text-emerald-400";
 
@@ -444,11 +488,11 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
                       isSelected ? "border-cyan-400 bg-cyan-500/10" : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
                     }`}
                   >
-                    <div>
-                      <div className="font-semibold text-white">{country.name}</div>
+                    <div className="min-w-0 flex-1 pr-2">
+                      <div className="truncate text-base font-semibold text-white">{country.name}</div>
                       <div className="text-xs text-slate-400">{country.region}</div>
                     </div>
-                    <div className="text-right">
+                    <div className="shrink-0 text-right">
                       <div className={`text-sm font-bold ${leaderColor}`}>{getCandidateLabel(country.leader as "Opção 1" | "Opção 2")}</div>
                       <div className="text-xs text-slate-400">
                         {country.optionOnePercentage.toFixed(1)}% x {country.optionTwoPercentage.toFixed(1)}%
@@ -457,12 +501,18 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
                   </button>
                 );
               })}
+
+              {filteredCountries.length > 8 ? (
+                <div className="mt-2 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 px-3 py-2 text-center text-xs text-slate-400">
+                  +{filteredCountries.length - 8} países restantes
+                </div>
+              ) : null}
             </div>
           </aside>
 
           <section className="space-y-6">
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl shadow-slate-950/30">
-              <div className="mb-5 flex items-center justify-between gap-3">
+            <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-4 shadow-xl shadow-slate-950/30">
+              <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm uppercase tracking-[0.18em] text-slate-400">Mapa mundial</p>
                   <h2 className="text-2xl font-bold text-white">Resultado por país</h2>
@@ -480,6 +530,8 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
                       setSelectedRegion("Todos");
                       setSearchQuery("");
                       setMapRegionFocus("Todos");
+                      setSelectedCandidate("Todos");
+                      setMapZoom(1);
                     }}
                     className="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
                   >
@@ -488,12 +540,15 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
                 </div>
               </div>
 
-              <div className="mb-4 flex flex-wrap gap-2">
+              <div className="mb-3 flex flex-wrap gap-2">
                 {mapFocusOptions.map((region) => (
                   <button
                     key={region}
                     type="button"
-                    onClick={() => setMapRegionFocus(region)}
+                    onClick={() => {
+                      setMapRegionFocus(region);
+                      setMapZoom(1);
+                    }}
                     className={`rounded-full px-2.5 py-1.5 text-xs font-medium transition ${
                       mapRegionFocus === region ? "bg-cyan-500 text-cyan-950" : "border border-slate-700 bg-slate-950 text-slate-300"
                     }`}
@@ -503,7 +558,40 @@ export function ElectionDashboard({ countries }: { countries: CountryRow[] }) {
                 ))}
               </div>
 
-              <div className="relative h-110 overflow-hidden rounded-2xl border border-slate-800 bg-[radial-gradient(circle_at_top,#0f172a_0%,#020817_45%,#0b1120_100%)] p-2 shadow-inner shadow-slate-950/30">
+              <div className="mb-3 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMapZoom((current) => Math.max(0.8, Number((current - 0.2).toFixed(1))))}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-lg text-slate-200 transition hover:border-cyan-500/60 hover:text-white"
+                  aria-label="Diminuir zoom"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapZoom((current) => Math.min(1.8, Number((current + 0.2).toFixed(1))))}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-lg text-slate-200 transition hover:border-cyan-500/60 hover:text-white"
+                  aria-label="Aumentar zoom"
+                >
+                  +
+                </button>
+              </div>
+
+              <div
+                className="relative h-120 overflow-hidden rounded-2xl border border-slate-800 bg-[radial-gradient(circle_at_top,#0f172a_0%,#020817_45%,#0b1120_100%)] p-2 shadow-inner shadow-slate-950/30"
+                onWheel={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const direction = event.deltaY > 0 ? -0.2 : 0.2;
+                  setMapZoom((current) => Math.min(1.8, Math.max(0.8, Number((current + direction).toFixed(1)))));
+                }}
+                onMouseEnter={() => {
+                  document.body.style.overflow = "hidden";
+                }}
+                onMouseLeave={() => {
+                  document.body.style.overflow = "";
+                }}
+              >
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-between px-4 pt-3 text-[10px] uppercase tracking-[0.18em] text-slate-400">
                   <span>Mapa interativo</span>
                   <span>{mapCountries.length} países</span>
